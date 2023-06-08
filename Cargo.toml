@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "application",
+    "beaglemath",
+    "glfw",
+]

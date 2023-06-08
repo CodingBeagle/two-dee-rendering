@@ -1,0 +1,57 @@
+/*
+    Cargo will compile and execute build.rs before building the actual package.
+    This can be used for various tasks, such as building a bundled C library, or linking a C library.
+    In my case, I use it to link to GLFW.
+
+    build scripts can communicate with Cargo by printing specially formatted commands prefixed with cargo: to stdout.
+    Commands starting with cargo: are instructions used to influence compilation of the package.
+*/
+extern crate bindgen;
+
+use std::env;
+use std::path::PathBuf;
+
+fn main() {
+    // Tell rustc to look for GLFW libraries in the specified directory
+    println!("cargo:rustc-link-search=D:/libraries/glfw337");
+
+    // Tell rustc to link the GLFW library.
+    // I'm currently using the dynamic library (.DLL) version.
+    // Using this, I'm not required to also handle linking of GLFW's dependencies, which are: gdi32, user32, kernel32.
+    // More info here: https://www.glfw.org/docs/latest/build_guide.html
+    println!("cargo:rustc-link-lib=dylib=glfw3dll");
+
+    // Tell cargo to invalidate the crate whenever the wrapper changes
+    println!("cargo:rerun-if-changed=wrapper.h");
+
+    // bindgen::Builder is the main entry point to bindgen, and lets you build up options for the resulting generated bindings.
+    let bindings = bindgen::Builder::default()
+        // I blocklist VkSurfaceKHR types, and the VkInstance type.
+        // These types are what is known as "Non-dispatchable" handle types, and are 64-bit integer types.
+        // They were, for some reason, not properly handled by bindgen.
+        // They are generated as opaque types, which is not needed.
+        .blocklist_type("VkSurfaceKHR.*")
+        .blocklist_type("VkInstance")
+        // I'm currently using the dynamic library (.dll) for GLFW
+        // When using that, it is required to define the GLFW_DLL macro, to tell the compiler that the GLFW functions are defined in a DLL.
+        .clang_arg("-D GLFW_DLL")
+        .clang_arg("-D GLFW_INCLUDE_VULKAN")
+        // The wrapper header contains the header files from GLFW that the generated bindings should be based upon.
+        .header("wrapper.h")
+        // With the F argument, I add the directory to search for header files from GLFW
+        .clang_arg("-FD:/libraries/glfw337")
+        // I also include a place to search for the Vulkan headers, which is required for GLFW
+        .clang_arg("-FD:/VulkanSDK/1.3.224.1/Include")
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .generate()
+        .expect("Unable to generate GLFW bindings.");
+
+    // Write the bindings to the $OUT_DIR/bindings.rs file.
+    // The OUT_DIR is an environment variable for the build process, and is the folder inside the build directory for the package being built,
+    // and it is unique for the package in question.
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+
+    bindings
+        .write_to_file(out_path.join("glfw-bindings.rs"))
+        .expect("Couldn't write GLFW bindings to output file.");
+}

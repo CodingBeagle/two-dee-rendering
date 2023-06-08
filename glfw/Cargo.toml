@@ -1,0 +1,9 @@
+[package]
+name = "glfw"
+version = "0.1.0"
+edition = "2021"
+
+# build-dependencies are used for dependencies needed during the build process
+# That is, for build scripts (build.rs file)
+[build-dependencies]
+"bindgen" = "0.65.1"
