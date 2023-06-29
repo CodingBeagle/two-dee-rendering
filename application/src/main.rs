@@ -1,3 +1,10 @@
+use glfw::{self, glfwInit};
+
 fn main() {
-    println!("Hello, world!");
+    unsafe {
+        // Initialize GLFW
+        if glfwInit() == -1 {
+            println!("Failed to initialize GLFW!");
+        };
+    }
 }
